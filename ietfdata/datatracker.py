@@ -244,6 +244,45 @@ class Submission:
     words: Optional[int]
 
 
+@dataclass
+class DocumentHistory:
+    abstract: str
+    ad: Optional[str]
+    doc: str
+    expires: str
+    external_url: str
+    group: str
+    id: int
+    intended_std_level: Optional[str]
+    internal_comments: str
+    name: str
+    note: str
+    notify: str
+    order: int
+    pages: int
+    resource_uri: str
+    rev: int
+    shepherd: Optional[str]
+    states: str
+    std_level: Optional[str]
+    stream: str
+    tags: List[str]
+    time: str
+    title: str
+    type: str
+    uploaded_filename: str
+    words: Optional[int]
+
+
+@dataclass
+class RelatedDocumentHistory:
+    id: int
+    relationship: str
+    resource_uri: str
+    source: str
+    target: str
+
+
 # =================================================================================================================================
 # A class to represent the datatracker:
 
@@ -580,6 +619,43 @@ class DataTracker:
             for obj in objs:
                 yield Pavlova().from_mapping(obj, Document)
 
+    def document_history(self, name):
+        """
+        A generator returning the history for a document.
+
+
+        Parameters:
+           name of a document -- A document example -> draft-ietf-avt-rtp-new
+
+        Returns:
+           A sequence of DocumentHistory objects
+        """
+
+        api_url = "/api/v1/doc/dochistory/?name=" + name
+        response = self.session.get(self.base_url + api_url, verify=True)
+        objs = response.json()['objects']
+        if response.status_code == 200:
+            for obj in objs:
+                yield Pavlova().from_mapping(obj, DocumentHistory)
+
+    def related_document_history(self, source, relationship):
+        """
+        A generator returning the related document history for a document.
+
+
+        Parameters:
+           document can be filtered by the source id of the form --/api/v1/doc/dochistory/20/
+           and relationship example replaces, obsolete, updates etc.
+
+        Returns:
+           A sequence of RelatedDocumentHistory objects
+        """
+        api_url = "/api/v1/doc/relateddochistory/?source=" + source + "&relationship=" + relationship
+        response = self.session.get(self.base_url + api_url, verify=True)
+        objs = response.json()['objects']
+        for obj in objs:
+            yield Pavlova().from_mapping(obj, RelatedDocumentHistory)
+
     #   https://datatracker.ietf.org/api/v1/doc/docevent/                        - list of document events
     #   https://datatracker.ietf.org/api/v1/doc/docevent/?doc=...                - events for a document
     #   https://datatracker.ietf.org/api/v1/doc/docevent/?by=...                 - events by a person (as /api/v1/person/person)
@@ -797,34 +873,15 @@ class DataTracker:
             for obj in objs:
                 yield Pavlova().from_mapping(obj, Group)
 
-    def ietf_area(self):
-
-        """
-          Returns:
-              The name of an ietf area : string
-
-              Datatracker API endpoints returning information about ietf_area:
-
-              https://datatracker.ietf.org/api/v1/group/group/1249/ => Routing Area
-              https://datatracker.ietf.org/api/v1/group/group/1052/ => Internet Area
-              https://datatracker.ietf.org/api/v1/group/group/2010/ => Applications and Real-Time Area
-              https://datatracker.ietf.org/api/v1/group/group/1008/ => General Area
-              https://datatracker.ietf.org/api/v1/group/group/1193/ => Operations and Management Area
-              https://datatracker.ietf.org/api/v1/group/group/1260/ => Security Area
-              https://datatracker.ietf.org/api/v1/group/group/1324/ => Transport Area
-        """
-
-        api_url = "/api/v1/group/group/"
-
-        area_id = ["1249", "1052", "2010", "1008", "1193", "1260", "1324"]
-        for i in range(len(area_id)):
-            response = self.session.get(self.base_url + api_url + area_id[i] + "/", verify=True)
-            if response.status_code == 200:
-                yield Pavlova().from_mapping(response.json(), Group)
-
     def active_wg_area(self, parent):
         """
-            This function gets the lists of active working groups in the GENERAL AREA
+            A generator that returns the lists of active working groups in an area
+
+            :parameter:
+                takes in the id of the area which is the parent of the groups required
+
+            :returns:
+
         """
         api_url = "/api/v1/group/group/?type=wg&state=active&parent=" + parent
         response = self.session.get(self.base_url + api_url, verify=True)
